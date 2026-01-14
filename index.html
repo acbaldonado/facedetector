@@ -234,7 +234,7 @@
             const confidence = (sorted[0][1] * 100).toFixed(0);
             
             emotionText.textContent = `${emotionEmojis[topEmotion]} ${topEmotion.toUpperCase()}`;
-            statusText.textContent = `Confidence: ${confidence}%`;
+            statusText.textContent = `ConfidenceS: ${confidence}%`;
             
             let html = '';
             sorted.forEach(([emotion, value]) => {
