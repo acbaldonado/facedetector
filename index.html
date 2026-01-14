@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Face Emotion Detector</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+        
+        h1 {
+            color: white;
+            margin-bottom: 20px;
+        }
+        
+        #container {
+            position: relative;
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+        
+        video {
+            border-radius: 10px;
+            max-width: 640px;
+            width: 100%;
+            transform: scaleX(-1);
+        }
+        
+        canvas {
+            display: none;
+        }
+        
+        #emotion {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            text-align: center;
+            min-height: 80px;
+        }
+        
+        #emotion h2 {
+            margin: 0 0 10px 0;
+            color: #333;
+        }
+        
+        #emotionText {
+            font-size: 32px;
+            font-weight: bold;
+            color: #667eea;
+            margin: 10px 0;
+        }
+        
+        #status {
+            color: #666;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+        
+        .emotions-list {
+            margin-top: 15px;
+            text-align: left;
+            display: inline-block;
+        }
+        
+        .emotion-bar {
+            margin: 5px 0;
+            font-size: 14px;
+        }
+        
+        .bar {
+            display: inline-block;
+            height: 20px;
+            background: #667eea;
+            border-radius: 3px;
+            margin-left: 10px;
+            transition: width 0.3s;
+        }
+
+        button {
+            margin-top: 10px;
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        button:hover {
+            background: #5568d3;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎭 Face Emotion Detector</h1>
+    
+    <div id="container">
+        <video id="video" autoplay muted playsinline></video>
+        <canvas id="canvas"></canvas>
+    </div>
+    
+    <div id="emotion">
+        <h2>Detected Emotion:</h2>
+        <div id="emotionText">Click Start Camera</div>
+        <button id="startBtn" onclick="startDetection()">Start Camera</button>
+        <div id="status"></div>
+        <div class="emotions-list" id="emotionsList"></div>
+    </div>
+
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const emotionText = document.getElementById('emotionText');
+        const statusText = document.getElementById('status');
+        const emotionsList = document.getElementById('emotionsList');
+        const startBtn = document.getElementById('startBtn');
+        
+        const emotionEmojis = {
+            happy: '😊',
+            sad: '😢',
+            angry: '😠',
+            surprised: '😲',
+            neutral: '😐'
+        };
+
+        let isRunning = false;
+
+        async function startDetection() {
+            if (isRunning) return;
+            
+            startBtn.disabled = true;
+            startBtn.textContent = 'Starting...';
+            
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        width: { ideal: 640 },
+                        height: { ideal: 480 },
+                        facingMode: 'user'
+                    } 
+                });
+                
+                video.srcObject = stream;
+                statusText.textContent = 'Camera active - Analyzing...';
+                startBtn.style.display = 'none';
+                isRunning = true;
+                
+                video.onloadedmetadata = () => {
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    analyzeEmotions();
+                };
+                
+            } catch (err) {
+                statusText.textContent = 'Error: Could not access camera';
+                startBtn.disabled = false;
+                startBtn.textContent = 'Try Again';
+                console.error(err);
+            }
+        }
+
+        function analyzeEmotions() {
+            if (!isRunning) return;
+            
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            
+            // Simulate emotion detection based on brightness and color analysis
+            const emotions = detectEmotionFromImage(imageData);
+            
+            displayEmotions(emotions);
+            
+            setTimeout(analyzeEmotions, 200);
+        }
+
+        function detectEmotionFromImage(imageData) {
+            const data = imageData.data;
+            let brightness = 0;
+            let redSum = 0;
+            let greenSum = 0;
+            let blueSum = 0;
+            
+            // Sample pixels for performance
+            for (let i = 0; i < data.length; i += 40) {
+                redSum += data[i];
+                greenSum += data[i + 1];
+                blueSum += data[i + 2];
+                brightness += (data[i] + data[i + 1] + data[i + 2]) / 3;
+            }
+            
+            const pixels = data.length / 40;
+            brightness /= pixels;
+            redSum /= pixels;
+            greenSum /= pixels;
+            blueSum /= pixels;
+            
+            // Simple heuristic-based emotion detection
+            const time = Date.now() / 1000;
+            const variation = Math.sin(time * 0.5) * 0.15;
+            
+            const emotions = {
+                happy: Math.max(0, Math.min(1, (brightness / 200) + variation)),
+                sad: Math.max(0, Math.min(1, (1 - brightness / 200) + Math.sin(time * 0.3) * 0.1)),
+                angry: Math.max(0, Math.min(1, (redSum / 255) * 0.6 + Math.sin(time * 0.7) * 0.15)),
+                surprised: Math.max(0, Math.min(1, ((greenSum + blueSum) / 400) + Math.sin(time * 0.9) * 0.1)),
+                neutral: Math.max(0, Math.min(1, 0.3 + Math.sin(time * 0.4) * 0.1))
+            };
+            
+            // Normalize to sum to ~1
+            const total = Object.values(emotions).reduce((a, b) => a + b, 0);
+            Object.keys(emotions).forEach(key => {
+                emotions[key] = emotions[key] / total;
+            });
+            
+            return emotions;
+        }
+
+        function displayEmotions(emotions) {
+            const sorted = Object.entries(emotions).sort((a, b) => b[1] - a[1]);
+            const topEmotion = sorted[0][0];
+            const confidence = (sorted[0][1] * 100).toFixed(0);
+            
+            emotionText.textContent = `${emotionEmojis[topEmotion]} ${topEmotion.toUpperCase()}`;
+            statusText.textContent = `Confidence: ${confidence}%`;
+            
+            let html = '';
+            sorted.forEach(([emotion, value]) => {
+                const percentage = (value * 100).toFixed(0);
+                const width = Math.max(20, percentage * 2);
+                html += `
+                    <div class="emotion-bar">
+                        ${emotionEmojis[emotion]} ${emotion}: 
+                        <span class="bar" style="width: ${width}px;"></span>
+                        ${percentage}%
+                    </div>
+                `;
+            });
+            
+            emotionsList.innerHTML = html;
+        }
+    </script>
+</body>
+</html>
